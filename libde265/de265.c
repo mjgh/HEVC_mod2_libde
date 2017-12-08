@@ -35,39 +35,50 @@
 #include <string.h>
 #include <stdlib.h>
 
-
-de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal);
+de265_error de265_decode_NAL(de265_decoder_context *de265ctx, NAL_unit *nal);
 
 // TODO: should be in some vps.c related header
-de265_error read_vps(decoder_context* ctx, bitreader* reader, video_parameter_set* vps);
-
+de265_error read_vps(decoder_context *ctx, bitreader *reader, video_parameter_set *vps);
 
 LIBDE265_API const char *de265_get_version(void)
 {
-    return (LIBDE265_VERSION);
+  return (LIBDE265_VERSION);
 }
 
 LIBDE265_API uint32_t de265_get_version_number(void)
 {
-    return (LIBDE265_NUMERIC_VERSION);
+  return (LIBDE265_NUMERIC_VERSION);
 }
 
-LIBDE265_API const char* de265_get_error_text(de265_error err)
+LIBDE265_API const char *de265_get_error_text(de265_error err)
 {
-  switch (err) {
-  case DE265_OK: return "no error";
-  case DE265_ERROR_NO_SUCH_FILE: return "no such file";
-    //case DE265_ERROR_NO_STARTCODE: return "no startcode found";
-  case DE265_ERROR_EOF: return "end of file";
-  case DE265_ERROR_COEFFICIENT_OUT_OF_IMAGE_BOUNDS: return "coefficient out of image bounds";
-  case DE265_ERROR_CHECKSUM_MISMATCH: return "image checksum mismatch";
-  case DE265_ERROR_CTB_OUTSIDE_IMAGE_AREA: return "CTB outside of image area";
-  case DE265_ERROR_OUT_OF_MEMORY: return "out of memory";
-  case DE265_ERROR_CODED_PARAMETER_OUT_OF_RANGE: return "coded parameter out of range";
-  case DE265_ERROR_IMAGE_BUFFER_FULL: return "DPB/output queue full";
-  case DE265_ERROR_CANNOT_START_THREADPOOL: return "cannot start decoding threads";
-  case DE265_ERROR_LIBRARY_INITIALIZATION_FAILED: return "global library initialization failed";
-  case DE265_ERROR_LIBRARY_NOT_INITIALIZED: return "cannot free library data (not initialized";
+  switch (err)
+  {
+  case DE265_OK:
+    return "no error";
+  case DE265_ERROR_NO_SUCH_FILE:
+    return "no such file";
+  //case DE265_ERROR_NO_STARTCODE: return "no startcode found";
+  case DE265_ERROR_EOF:
+    return "end of file";
+  case DE265_ERROR_COEFFICIENT_OUT_OF_IMAGE_BOUNDS:
+    return "coefficient out of image bounds";
+  case DE265_ERROR_CHECKSUM_MISMATCH:
+    return "image checksum mismatch";
+  case DE265_ERROR_CTB_OUTSIDE_IMAGE_AREA:
+    return "CTB outside of image area";
+  case DE265_ERROR_OUT_OF_MEMORY:
+    return "out of memory";
+  case DE265_ERROR_CODED_PARAMETER_OUT_OF_RANGE:
+    return "coded parameter out of range";
+  case DE265_ERROR_IMAGE_BUFFER_FULL:
+    return "DPB/output queue full";
+  case DE265_ERROR_CANNOT_START_THREADPOOL:
+    return "cannot start decoding threads";
+  case DE265_ERROR_LIBRARY_INITIALIZATION_FAILED:
+    return "global library initialization failed";
+  case DE265_ERROR_LIBRARY_NOT_INITIALIZED:
+    return "cannot free library data (not initialized";
 
   case DE265_ERROR_MAX_THREAD_CONTEXTS_EXCEEDED:
     return "internal error: maximum number of thread contexts exceeded";
@@ -121,32 +132,30 @@ LIBDE265_API const char* de265_get_error_text(de265_error err)
   case DE265_WARNING_SLICE_SEGMENT_ADDRESS_INVALID:
     return "slice segment address invalid";
 
-  default: return "unknown error";
+  default:
+    return "unknown error";
   }
 }
-
-
-
-
 
 ALIGNED_8(static de265_sync_int de265_init_count) = 0;
 
 LIBDE265_API de265_error de265_init()
 {
-  int cnt = de265_sync_add_and_fetch(&de265_init_count,1);
-  if (cnt>1) {
+  int cnt = de265_sync_add_and_fetch(&de265_init_count, 1);
+  if (cnt > 1)
+  {
     // we are not the first -> already initialized
 
     return DE265_OK;
   }
 
-
   // do initializations
 
   init_scan_orders();
 
-  if (!alloc_and_init_significant_coeff_ctxIdx_lookupTable()) {
-    de265_sync_sub_and_fetch(&de265_init_count,1);
+  if (!alloc_and_init_significant_coeff_ctxIdx_lookupTable())
+  {
+    de265_sync_sub_and_fetch(&de265_init_count, 1);
     return DE265_ERROR_LIBRARY_INITIALIZATION_FAILED;
   }
 
@@ -155,44 +164,47 @@ LIBDE265_API de265_error de265_init()
 
 LIBDE265_API de265_error de265_free()
 {
-  int cnt = de265_sync_sub_and_fetch(&de265_init_count,1);
-  if (cnt<0) {
-    de265_sync_add_and_fetch(&de265_init_count,1);
+  int cnt = de265_sync_sub_and_fetch(&de265_init_count, 1);
+  if (cnt < 0)
+  {
+    de265_sync_add_and_fetch(&de265_init_count, 1);
     return DE265_ERROR_LIBRARY_NOT_INITIALIZED;
   }
 
-  if (cnt==0) {
+  if (cnt == 0)
+  {
     free_significant_coeff_ctxIdx_lookupTable();
   }
 
   return DE265_OK;
 }
 
-
-LIBDE265_API de265_decoder_context* de265_new_decoder()
+LIBDE265_API de265_decoder_context *de265_new_decoder()
 {
   de265_error init_err = de265_init();
-  if (init_err != DE265_OK) {
+  if (init_err != DE265_OK)
+  {
     return NULL;
   }
 
-  decoder_context* ctx = (decoder_context*)calloc(sizeof(decoder_context),1);
-  if (!ctx) {
+  decoder_context *ctx = (decoder_context *)calloc(sizeof(decoder_context), 1);
+  if (!ctx)
+  {
     de265_free();
     return NULL;
   }
 
   init_decoder_context(ctx);
 
-  return (de265_decoder_context*)ctx;
+  return (de265_decoder_context *)ctx;
 }
 
-
-LIBDE265_API de265_error de265_free_decoder(de265_decoder_context* de265ctx)
+LIBDE265_API de265_error de265_free_decoder(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
-  if (ctx->num_worker_threads>0) {
+  if (ctx->num_worker_threads > 0)
+  {
     //flush_thread_pool(&ctx->thread_pool);
     stop_thread_pool(&ctx->thread_pool);
   }
@@ -203,29 +215,33 @@ LIBDE265_API de265_error de265_free_decoder(de265_decoder_context* de265ctx)
   return de265_free();
 }
 
-
-LIBDE265_API de265_error de265_start_worker_threads(de265_decoder_context* de265ctx, int number_of_threads)
+LIBDE265_API de265_error de265_start_worker_threads(de265_decoder_context *de265ctx, int number_of_threads)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   ctx->num_worker_threads = number_of_threads;
 
-  if (number_of_threads>0) {
+  if (number_of_threads > 0)
+  {
     de265_error err = start_thread_pool(&ctx->thread_pool, number_of_threads);
     return err;
   }
-  else {
+  else
+  {
     return DE265_OK;
   }
 }
 
-
-void nal_insert_skipped_byte(NAL_unit* nal, int pos)
+void nal_insert_skipped_byte(NAL_unit *nal, int pos)
 {
-  if (nal->max_skipped_bytes == nal->num_skipped_bytes) {
-    if (nal->max_skipped_bytes == 0) {
+  if (nal->max_skipped_bytes == nal->num_skipped_bytes)
+  {
+    if (nal->max_skipped_bytes == 0)
+    {
       nal->max_skipped_bytes = DE265_SKIPPED_BYTES_INITIAL_SIZE;
-    } else {
+    }
+    else
+    {
       nal->max_skipped_bytes <<= 2;
     }
 
@@ -238,30 +254,36 @@ void nal_insert_skipped_byte(NAL_unit* nal, int pos)
   nal->num_skipped_bytes++;
 }
 
-
 #ifndef LIBDE265_DISABLE_DEPRECATED
-LIBDE265_API de265_error de265_decode_data(de265_decoder_context* de265ctx,
-                                           const void* data8, int len)
+LIBDE265_API de265_error de265_decode_data(de265_decoder_context *de265ctx,
+                                           const void *data8, int len)
 {
   //decoder_context* ctx = (decoder_context*)de265ctx;
   de265_error err;
-  if (len > 0) {
+  if (len > 0)
+  {
     err = de265_push_data(de265ctx, data8, len, 0, NULL);
-  } else {
+  }
+  else
+  {
     err = de265_flush_data(de265ctx);
   }
-  if (err != DE265_OK) {
+  if (err != DE265_OK)
+  {
     return err;
   }
 
   int more = 0;
-  do {
+  do
+  {
     err = de265_decode(de265ctx, &more);
-    if (err != DE265_OK) {
-        more = 0;
+    if (err != DE265_OK)
+    {
+      more = 0;
     }
 
-    switch (err) {
+    switch (err)
+    {
     case DE265_ERROR_WAITING_FOR_INPUT_DATA:
       // ignore error (didn't exist in 0.4 and before)
       err = DE265_OK;
@@ -274,43 +296,61 @@ LIBDE265_API de265_error de265_decode_data(de265_decoder_context* de265ctx,
 }
 #endif
 
-LIBDE265_API de265_error de265_push_data(de265_decoder_context* de265ctx,
-                                         const void* data8, int len,
-                                         de265_PTS pts, void* user_data)
+LIBDE265_API de265_error de265_push_data(de265_decoder_context *de265ctx,
+                                         const void *data8, int len,
+                                         de265_PTS pts, void *user_data)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
-  uint8_t* data = (uint8_t*)data8;
+  decoder_context *ctx = (decoder_context *)de265ctx;
+  uint8_t *data = (uint8_t *)data8;
 
-  if (ctx->pending_input_NAL == NULL) {
-    ctx->pending_input_NAL = alloc_NAL_unit(ctx, len+3, DE265_SKIPPED_BYTES_INITIAL_SIZE);
+  if (ctx->pending_input_NAL == NULL)
+  {
+    ctx->pending_input_NAL = alloc_NAL_unit(ctx, len + 3, DE265_SKIPPED_BYTES_INITIAL_SIZE);
     ctx->pending_input_NAL->pts = pts;
     ctx->pending_input_NAL->user_data = user_data;
   }
 
-  NAL_unit* nal = ctx->pending_input_NAL; // shortcut
+  NAL_unit *nal = ctx->pending_input_NAL; // shortcut
 
   // Resize output buffer so that complete input would fit.
   // We add 3, because in the worst case 3 extra bytes are created for an input byte.
   rbsp_buffer_resize(&nal->nal_data, nal->nal_data.size + len + 3);
 
-  unsigned char* out = nal->nal_data.data + nal->nal_data.size;
+  unsigned char *out = nal->nal_data.data + nal->nal_data.size;
 
-  for (int i=0;i<len;i++) {
+  for (int i = 0; i < len; i++)
+  {
     /*
     printf("state=%d input=%02x (%p) (output size: %d)\n",ctx->input_push_state, *data, data,
            out - ctx->nal_data.data);
     */
 
-    switch (ctx->input_push_state) {
+    switch (ctx->input_push_state)
+    {
     case 0:
     case 1:
-      if (*data == 0) { ctx->input_push_state++; }
-      else { ctx->input_push_state=0; }
+      if (*data == 0)
+      {
+        ctx->input_push_state++;
+      }
+      else
+      {
+        ctx->input_push_state = 0;
+      }
       break;
     case 2:
-      if      (*data == 1) { ctx->input_push_state=3; nal->num_skipped_bytes=0; }
-      else if (*data == 0) { } // *out++ = 0; }
-      else { ctx->input_push_state=0; }
+      if (*data == 1)
+      {
+        ctx->input_push_state = 3;
+        nal->num_skipped_bytes = 0;
+      }
+      else if (*data == 0)
+      {
+      } // *out++ = 0; }
+      else
+      {
+        ctx->input_push_state = 0;
+      }
       break;
     case 3:
       *out++ = *data;
@@ -322,34 +362,52 @@ LIBDE265_API de265_error de265_push_data(de265_decoder_context* de265ctx,
       break;
 
     case 5:
-      if (*data==0) { ctx->input_push_state=6; }
-      else { *out++ = *data; }
+      if (*data == 0)
+      {
+        ctx->input_push_state = 6;
+      }
+      else
+      {
+        *out++ = *data;
+      }
       break;
 
     case 6:
-      if (*data==0) { ctx->input_push_state=7; }
-      else {
+      if (*data == 0)
+      {
+        ctx->input_push_state = 7;
+      }
+      else
+      {
         *out++ = 0;
         *out++ = *data;
-        ctx->input_push_state=5;
+        ctx->input_push_state = 5;
       }
       break;
 
     case 7:
-      if      (*data==0) { *out++ = 0; }
-      else if (*data==3) {
-        *out++ = 0; *out++ = 0; ctx->input_push_state=5;
+      if (*data == 0)
+      {
+        *out++ = 0;
+      }
+      else if (*data == 3)
+      {
+        *out++ = 0;
+        *out++ = 0;
+        ctx->input_push_state = 5;
 
         // remember which byte we removed
         nal_insert_skipped_byte(nal, (out - nal->nal_data.data) + nal->num_skipped_bytes);
       }
-      else if (*data==1) {
+      else if (*data == 1)
+      {
 
 #if DEBUG_INSERT_STREAM_ERRORS
-        if ((rand()%100)<90 && ctx->nal_data.size>0) {
-          int pos = rand()%ctx->nal_data.size;
-          int bit = rand()%8;
-          nal->nal_data.data[pos] ^= 1<<bit;
+        if ((rand() % 100) < 90 && ctx->nal_data.size > 0)
+        {
+          int pos = rand() % ctx->nal_data.size;
+          int bit = rand() % 8;
+          nal->nal_data.data[pos] ^= 1 << bit;
 
           //printf("inserted error...\n");
         }
@@ -360,23 +418,23 @@ LIBDE265_API de265_error de265_push_data(de265_decoder_context* de265ctx,
         // push this NAL decoder queue
         push_to_NAL_queue(ctx, nal);
 
-
         // initialize new, empty NAL unit
 
-        ctx->pending_input_NAL = alloc_NAL_unit(ctx, len+3, DE265_SKIPPED_BYTES_INITIAL_SIZE);
+        ctx->pending_input_NAL = alloc_NAL_unit(ctx, len + 3, DE265_SKIPPED_BYTES_INITIAL_SIZE);
         ctx->pending_input_NAL->pts = pts;
         nal = ctx->pending_input_NAL;
         out = nal->nal_data.data;
 
-        ctx->input_push_state=3;
-        nal->num_skipped_bytes=0;
+        ctx->input_push_state = 3;
+        nal->num_skipped_bytes = 0;
       }
-      else {
+      else
+      {
         *out++ = 0;
         *out++ = 0;
         *out++ = *data;
 
-        ctx->input_push_state=5;
+        ctx->input_push_state = 5;
       }
       break;
     }
@@ -388,13 +446,12 @@ LIBDE265_API de265_error de265_push_data(de265_decoder_context* de265ctx,
   return DE265_OK;
 }
 
-
-void remove_stuffing_bytes(NAL_unit* nal)
+void remove_stuffing_bytes(NAL_unit *nal)
 {
-  uint8_t* p = nal->nal_data.data;
+  uint8_t *p = nal->nal_data.data;
 
-  for (int i=0;i<nal->nal_data.size-2;i++)
-    {
+  for (int i = 0; i < nal->nal_data.size - 2; i++)
+  {
 #if 0
         for (int k=i;k<i+64;k++) 
           if (i*0+k<nal->nal_data.size) {
@@ -403,40 +460,42 @@ void remove_stuffing_bytes(NAL_unit* nal)
         printf("\n");
 #endif
 
-      if (p[2]!=3 && p[2]!=0) {
-        // fast forward 3 bytes (2+1)
-        p+=2;
-        i+=2;
-      }
-      else {
-        if (p[0]==0 && p[1]==0 && p[2]==3) {
-          //printf("SKIP NAL @ %d\n",i+2+nal->num_skipped_bytes);
-          nal_insert_skipped_byte(nal, i+2 + nal->num_skipped_bytes);
-
-          memmove(p+2, p+3, nal->nal_data.size-i-3);
-          nal->nal_data.size--;
-
-          p++;
-          i++;
-        }
-      }
-
-      p++;
+    if (p[2] != 3 && p[2] != 0)
+    {
+      // fast forward 3 bytes (2+1)
+      p += 2;
+      i += 2;
     }
+    else
+    {
+      if (p[0] == 0 && p[1] == 0 && p[2] == 3)
+      {
+        //printf("SKIP NAL @ %d\n",i+2+nal->num_skipped_bytes);
+        nal_insert_skipped_byte(nal, i + 2 + nal->num_skipped_bytes);
+
+        memmove(p + 2, p + 3, nal->nal_data.size - i - 3);
+        nal->nal_data.size--;
+
+        p++;
+        i++;
+      }
+    }
+
+    p++;
+  }
 }
 
-
-LIBDE265_API de265_error de265_push_NAL(de265_decoder_context* de265ctx,
-                                        const void* data8, int len,
-                                        de265_PTS pts, void* user_data)
+LIBDE265_API de265_error de265_push_NAL(de265_decoder_context *de265ctx,
+                                        const void *data8, int len,
+                                        de265_PTS pts, void *user_data)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
-  uint8_t* data = (uint8_t*)data8;
+  decoder_context *ctx = (decoder_context *)de265ctx;
+  uint8_t *data = (uint8_t *)data8;
 
   // Cannot use byte-stream input and NAL input at the same time.
   assert(ctx->pending_input_NAL == NULL);
 
-  NAL_unit* nal = alloc_NAL_unit(ctx, len, DE265_SKIPPED_BYTES_INITIAL_SIZE);
+  NAL_unit *nal = alloc_NAL_unit(ctx, len, DE265_SKIPPED_BYTES_INITIAL_SIZE);
   rbsp_buffer_resize(&nal->nal_data, len);
   nal->nal_data.size = len;
   nal->pts = pts;
@@ -450,77 +509,94 @@ LIBDE265_API de265_error de265_push_NAL(de265_decoder_context* de265ctx,
   return DE265_OK;
 }
 
-
-LIBDE265_API de265_error de265_decode(de265_decoder_context* de265ctx, int* more)
+LIBDE265_API de265_error de265_decode(de265_decoder_context *de265ctx, int *more)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   // if the stream has ended, and no more NALs are to be decoded, flush all pictures
 
-  if (ctx->NAL_queue_len == 0 && ctx->end_of_stream) {
-    if (more) { *more=0; } // 0 if no more pictures in queue
+  if (ctx->NAL_queue_len == 0 && ctx->end_of_stream)
+  {
+    if (more)
+    {
+      *more = 0;
+    } // 0 if no more pictures in queue
 
-    while (ctx->reorder_output_queue_length>0) {
+    while (ctx->reorder_output_queue_length > 0)
+    {
       flush_next_picture_from_reorder_buffer(ctx);
-      if (more) { *more=1; }
+      if (more)
+      {
+        *more = 1;
+      }
     }
 
     return DE265_OK;
   }
 
-
   // if NAL-queue is empty, we need more data
   // -> input stalled
 
-  if (ctx->NAL_queue_len == 0) {
-    if (more) { *more=1; }
+  if (ctx->NAL_queue_len == 0)
+  {
+    if (more)
+    {
+      *more = 1;
+    }
 
     return DE265_ERROR_WAITING_FOR_INPUT_DATA;
   }
 
-
   // when there are no free image buffers in the DPB, pause decoding
   // -> output stalled
 
-  if (!has_free_dpb_picture(ctx, false)) {
-    if (more) *more = 1;
+  if (!has_free_dpb_picture(ctx, false))
+  {
+    if (more)
+      *more = 1;
     return DE265_ERROR_IMAGE_BUFFER_FULL;
   }
 
-
   // decode one NAL from the queue
 
-  NAL_unit* nal = pop_from_NAL_queue(ctx);
+  NAL_unit *nal = pop_from_NAL_queue(ctx);
   assert(nal);
   de265_error err = de265_decode_NAL(de265ctx, nal);
-  free_NAL_unit(ctx,nal);
+  free_NAL_unit(ctx, nal);
 
-  if (more) {
+  if (more)
+  {
     // decoding error is assumed to be unrecoverable
-    *more = (err==DE265_OK);
+    *more = (err == DE265_OK);
   }
 
   return err;
 }
 
-
-LIBDE265_API de265_error de265_flush_data(de265_decoder_context* de265ctx)
+LIBDE265_API de265_error de265_flush_data(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
-  if (ctx->pending_input_NAL) {
-    NAL_unit* nal = ctx->pending_input_NAL;
-    uint8_t null[2] = { 0,0 };
+  if (ctx->pending_input_NAL)
+  {
+    NAL_unit *nal = ctx->pending_input_NAL;
+    uint8_t null[2] = {0, 0};
 
     // append bytes that are implied by the push state
 
-    if (ctx->input_push_state==6) { rbsp_buffer_append(&nal->nal_data,null,1); }
-    if (ctx->input_push_state==7) { rbsp_buffer_append(&nal->nal_data,null,2); }
-
+    if (ctx->input_push_state == 6)
+    {
+      rbsp_buffer_append(&nal->nal_data, null, 1);
+    }
+    if (ctx->input_push_state == 7)
+    {
+      rbsp_buffer_append(&nal->nal_data, null, 2);
+    }
 
     // only push the NAL if it contains at least the NAL header
 
-    if (ctx->input_push_state>=5) {
+    if (ctx->input_push_state >= 5)
+    {
       push_to_NAL_queue(ctx, nal);
       ctx->pending_input_NAL = NULL;
     }
@@ -533,8 +609,7 @@ LIBDE265_API de265_error de265_flush_data(de265_decoder_context* de265ctx)
   return DE265_OK;
 }
 
-
-void init_thread_context(thread_context* tctx)
+void init_thread_context(thread_context *tctx)
 {
   // zero scrap memory for coefficient blocks
   memset(tctx->coeffBuf, 0, sizeof(tctx->coeffBuf));
@@ -543,12 +618,10 @@ void init_thread_context(thread_context* tctx)
   tctx->currentQG_y = -1;
 }
 
+extern void thread_decode_CTB_row(void *d);
+extern void thread_decode_slice_segment(void *d);
 
-extern void thread_decode_CTB_row(void* d);
-extern void thread_decode_slice_segment(void* d);
-
-
-void add_task_decode_CTB_row(decoder_context* ctx, int thread_id, bool initCABAC)
+void add_task_decode_CTB_row(decoder_context *ctx, int thread_id, bool initCABAC)
 {
   thread_task task;
   task.task_id = 0; // no ID
@@ -560,8 +633,7 @@ void add_task_decode_CTB_row(decoder_context* ctx, int thread_id, bool initCABAC
   add_task(&ctx->thread_pool, &task);
 }
 
-
-void add_task_decode_slice_segment(decoder_context* ctx, int thread_id)
+void add_task_decode_slice_segment(decoder_context *ctx, int thread_id)
 {
   thread_task task;
   task.task_id = 0; // no ID
@@ -572,11 +644,10 @@ void add_task_decode_slice_segment(decoder_context* ctx, int thread_id)
   add_task(&ctx->thread_pool, &task);
 }
 
-
-de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
+de265_error de265_decode_NAL(de265_decoder_context *de265ctx, NAL_unit *nal)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
-  rbsp_buffer* data = &nal->nal_data;
+  decoder_context *ctx = (decoder_context *)de265ctx;
+  rbsp_buffer *data = &nal->nal_data;
 
   de265_error err = DE265_OK;
 
@@ -587,65 +658,69 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
   nal_read_header(&reader, &nal_hdr);
   process_nal_hdr(ctx, &nal_hdr);
 
-  logdebug(LogHighlevel,"NAL: 0x%x 0x%x -  %d %d\n",
+  logdebug(LogHighlevel, "NAL: 0x%x 0x%x -  %d %d\n",
            data->data[0], data->data[1],
            nal_hdr.nal_unit_type,
            nal_hdr.nuh_temporal_id);
 
-
-  if (nal_hdr.nal_unit_type<32) {
-    logdebug(LogHeaders,"---> read slice segment header\n");
+  if (nal_hdr.nal_unit_type < 32)
+  {
+    logdebug(LogHeaders, "---> read slice segment header\n");
 
     //printf("-------- slice header --------\n");
 
     int sliceIndex = get_next_slice_index(ctx);
-    if (sliceIndex<0) {
+    if (sliceIndex < 0)
+    {
       return DE265_ERROR_MAX_NUMBER_OF_SLICES_EXCEEDED;
     }
 
-    slice_segment_header* hdr = &ctx->slice[sliceIndex];
+    slice_segment_header *hdr = &ctx->slice[sliceIndex];
     hdr->slice_index = sliceIndex;
     bool continueDecoding;
-    err = read_slice_segment_header(&reader,hdr,ctx, &continueDecoding);
-    if (!continueDecoding) {
+    err = read_slice_segment_header(&reader, hdr, ctx, &continueDecoding);
+    if (!continueDecoding)
+    {
       return err;
     }
-    else {
-      if (ctx->param_slice_headers_fd>=0) {
+    else
+    {
+      if (ctx->param_slice_headers_fd >= 0)
+      {
         dump_slice_segment_header(hdr, ctx, ctx->param_slice_headers_fd);
       }
 
       if (process_slice_segment_header(ctx, hdr, &err, nal->pts, nal->user_data) == false)
-        {
-          ctx->img->integrity = INTEGRITY_NOT_DECODED;
-          return err;
-        }
+      {
+        ctx->img->integrity = INTEGRITY_NOT_DECODED;
+        return err;
+      }
 
-      skip_bits(&reader,1); // TODO: why?
+      skip_bits(&reader, 1); // TODO: why?
       prepare_for_CABAC(&reader);
-
 
       // modify entry_point_offsets
 
       int headerLength = reader.data - data->data;
-      for (int i=0;i<nal->num_skipped_bytes;i++)
-        {
-          nal->skipped_bytes[i] -= headerLength;
-        }
-        
-      for (int i=0;i<hdr->num_entry_point_offsets;i++) {
-        for (int k=nal->num_skipped_bytes-1;k>=0;k--)
-          if (nal->skipped_bytes[k] <= hdr->entry_point_offset[i]) {
-            hdr->entry_point_offset[i] -= k+1;
+      for (int i = 0; i < nal->num_skipped_bytes; i++)
+      {
+        nal->skipped_bytes[i] -= headerLength;
+      }
+
+      for (int i = 0; i < hdr->num_entry_point_offsets; i++)
+      {
+        for (int k = nal->num_skipped_bytes - 1; k >= 0; k--)
+          if (nal->skipped_bytes[k] <= hdr->entry_point_offset[i])
+          {
+            hdr->entry_point_offset[i] -= k + 1;
             break;
           }
       }
 
-
-      const pic_parameter_set* pps = ctx->current_pps;
+      const pic_parameter_set *pps = ctx->current_pps;
       int ctbsWidth = ctx->current_sps->PicWidthInCtbsY;
 
-      int nRows = hdr->num_entry_point_offsets +1;
+      int nRows = hdr->num_entry_point_offsets + 1;
 
       bool use_WPP = (ctx->num_worker_threads > 0 &&
                       ctx->current_pps->entropy_coding_sync_enabled_flag);
@@ -653,88 +728,76 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
       bool use_tiles = (ctx->num_worker_threads > 0 &&
                         ctx->current_pps->tiles_enabled_flag);
 
-      if (use_WPP && use_tiles) {
+      if (use_WPP && use_tiles)
+      {
         //add_warning(ctx, DE265_WARNING_STREAMS_APPLIES_TILES_AND_WPP, true);
       }
 
       if (ctx->num_worker_threads > 0 &&
           ctx->current_pps->entropy_coding_sync_enabled_flag == false &&
-          ctx->current_pps->tiles_enabled_flag == false) {
+          ctx->current_pps->tiles_enabled_flag == false)
+      {
 
         // TODO: new error should be: no WPP and no Tiles ...
         add_warning(ctx, DE265_WARNING_NO_WPP_CANNOT_USE_MULTITHREADING, true);
       }
 
-      if (!use_WPP && !use_tiles) {
-  
-          int nTiles = nRows;  // TODO: rename 'nRows'
-	int tot_col=pps->num_tile_columns;
-	int tot_row=pps->num_tile_rows;    
-         
-       // for (int ty=0;ty<pps->num_tile_rows;ty++){
-       // for (int tx=0;tx<pps->num_tile_columns;tx++) {
-	//printf(" %d \n",omp_get_num_threads());
-	#pragma omp parallel for
-	for(int tile=0;tile<nTiles;tile++){
-           // int tile = tx + ty*pps->num_tile_columns;
-   	   
-	    int ty=tile/(tot_col);
-		
-	    int tx=tile%tot_row;			
-	//	printf(" %d %d %d %d \n",tx,ty,tile,nTiles);
-	//	printf(" %d \n",omp_get_num_threads());
-            ctx->thread_context[tile].shdr = hdr;
-            ctx->thread_context[tile].decctx = ctx;
+      if (!use_WPP && !use_tiles)
+      {
 
-            ctx->thread_context[tile].CtbAddrInTS = pps->CtbAddrRStoTS[pps->colBd[tx] + pps->rowBd[ty]*ctbsWidth];
+        int nTiles = nRows; // TODO: rename 'nRows'
+        int tot_col = pps->num_tile_columns;
+        int tot_row = pps->num_tile_rows;
 
-            int dataStartIndex;
-            if (tile==0) { dataStartIndex=0; }
-            else         { dataStartIndex=hdr->entry_point_offset[tile-1]; }
+#pragma omp parallel for
+        for (int tile = 0; tile < nTiles; tile++)
+        {
+          
+          int ty = tile / (tot_col);
 
-            int dataEnd;
-            if (tile==nRows-1) dataEnd = reader.bytes_remaining;
-            else               dataEnd = hdr->entry_point_offset[tile];
-     
-            init_thread_context(&ctx->thread_context[tile]);
+          int tx = tile % tot_row;
+          
+          ctx->thread_context[tile].shdr = hdr;
+          ctx->thread_context[tile].decctx = ctx;
 
-            init_CABAC_decoder(&ctx->thread_context[tile].cabac_decoder,
-                               &reader.data[dataStartIndex],
-                               dataEnd-dataStartIndex);
-           
-            if ((err=read_slice_segment(ctx, &ctx->thread_context[tile])) != DE265_OK)
+          ctx->thread_context[tile].CtbAddrInTS = pps->CtbAddrRStoTS[pps->colBd[tx] + pps->rowBd[ty] * ctbsWidth];
+
+          int dataStartIndex;
+          if (tile == 0)
           {
-              
-                printf("---Error--- :-) \n"); 
-            }  
-              
-          }    
-        //  }}
+            dataStartIndex = 0;
+          }
+          else
+          {
+            dataStartIndex = hdr->entry_point_offset[tile - 1];
+          }
 
-    /* This is the original code --- sequential version*/
+          int dataEnd;
+          if (tile == nRows - 1)
+            dataEnd = reader.bytes_remaining;
+          else
+            dataEnd = hdr->entry_point_offset[tile];
 
-/*
+          init_thread_context(&ctx->thread_context[tile]);
 
-  init_thread_context(&ctx->thread_context[0]);
+          init_CABAC_decoder(&ctx->thread_context[tile].cabac_decoder,
+                             &reader.data[dataStartIndex],
+                             dataEnd - dataStartIndex);
 
-        init_CABAC_decoder(&ctx->thread_context[0].cabac_decoder,
-                           reader.data,
-                           reader.bytes_remaining);
+          if ((err = read_slice_segment(ctx, &ctx->thread_context[tile])) != DE265_OK)
+          {
 
-        ctx->thread_context[0].shdr = hdr;
-        ctx->thread_context[0].decctx = ctx;
-        ctx->thread_context[0].CtbAddrInTS = pps->CtbAddrRStoTS[hdr->SliceAddrRS];
-
-        // fixed context 0
-        if ((err=read_slice_segment_data(ctx, &ctx->thread_context[0])) != DE265_OK)
-          { return err; }
-
-*/
+            printf("---Error--- :-) \n");
+          }
+        }
+        
       }
-      else if (use_tiles && !use_WPP) {
-        int nTiles = nRows;  // TODO: rename 'nRows'
+      else if (use_tiles && !use_WPP)
+      {
+        int nTiles = nRows; // TODO: rename 'nRows'
 
-        if (nTiles > MAX_THREAD_CONTEXTS) {
+        if (nTiles > MAX_THREAD_CONTEXTS)
+        {
           return DE265_ERROR_MAX_THREAD_CONTEXTS_EXCEEDED;
         }
 
@@ -743,9 +806,10 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
         assert(ctx->img->tasks_pending == 0);
         increase_pending_tasks(ctx->img, nTiles);
 
-        for (int ty=0;ty<pps->num_tile_rows;ty++)
-          for (int tx=0;tx<pps->num_tile_columns;tx++) {
-            int tile = tx + ty*pps->num_tile_columns;
+        for (int ty = 0; ty < pps->num_tile_rows; ty++)
+          for (int tx = 0; tx < pps->num_tile_columns; tx++)
+          {
+            int tile = tx + ty * pps->num_tile_columns;
 
             // set thread context
 
@@ -758,29 +822,37 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
             ctx->thread_context[tile].shdr = hdr;
             ctx->thread_context[tile].decctx = ctx;
 
-            ctx->thread_context[tile].CtbAddrInTS = pps->CtbAddrRStoTS[pps->colBd[tx] + pps->rowBd[ty]*ctbsWidth];
-
+            ctx->thread_context[tile].CtbAddrInTS = pps->CtbAddrRStoTS[pps->colBd[tx] + pps->rowBd[ty] * ctbsWidth];
 
             // init CABAC
 
             int dataStartIndex;
-            if (tile==0) { dataStartIndex=0; }
-            else         { dataStartIndex=hdr->entry_point_offset[tile-1]; }
+            if (tile == 0)
+            {
+              dataStartIndex = 0;
+            }
+            else
+            {
+              dataStartIndex = hdr->entry_point_offset[tile - 1];
+            }
 
             int dataEnd;
-            if (tile==nRows-1) dataEnd = reader.bytes_remaining;
-            else               dataEnd = hdr->entry_point_offset[tile];
+            if (tile == nRows - 1)
+              dataEnd = reader.bytes_remaining;
+            else
+              dataEnd = hdr->entry_point_offset[tile];
 
             init_thread_context(&ctx->thread_context[tile]);
 
             init_CABAC_decoder(&ctx->thread_context[tile].cabac_decoder,
                                &reader.data[dataStartIndex],
-                               dataEnd-dataStartIndex);
+                               dataEnd - dataStartIndex);
           }
 
         // add tasks
 
-        for (int i=0;i<nTiles;i++) {
+        for (int i = 0; i < nTiles; i++)
+        {
           add_task_decode_slice_segment(ctx, i);
         }
 
@@ -790,8 +862,10 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
 
         wait_for_completion(ctx->img);
       }
-      else if (1) {
-        if (nRows > MAX_THREAD_CONTEXTS) {
+      else if (1)
+      {
+        if (nRows > MAX_THREAD_CONTEXTS)
+        {
           return DE265_ERROR_MAX_THREAD_CONTEXTS_EXCEEDED;
         }
 
@@ -800,41 +874,50 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
 
         //printf("-------- decode --------\n");
 
-
-        for (int y=0;y<nRows;y++) {
+        for (int y = 0; y < nRows; y++)
+        {
 
           // set thread context
 
-          for (int x=0;x<ctbsWidth;x++) {
-            ctx->img->ctb_info[x+y*ctbsWidth].thread_context_id = y; // TODO: shouldn't be hardcoded
+          for (int x = 0; x < ctbsWidth; x++)
+          {
+            ctx->img->ctb_info[x + y * ctbsWidth].thread_context_id = y; // TODO: shouldn't be hardcoded
           }
 
           ctx->thread_context[y].shdr = hdr;
           ctx->thread_context[y].decctx = ctx;
-          ctx->thread_context[y].CtbAddrInTS = pps->CtbAddrRStoTS[0 + y*ctbsWidth];
-
+          ctx->thread_context[y].CtbAddrInTS = pps->CtbAddrRStoTS[0 + y * ctbsWidth];
 
           // init CABAC
 
           int dataStartIndex;
-          if (y==0) { dataStartIndex=0; }
-          else      { dataStartIndex=hdr->entry_point_offset[y-1]; }
+          if (y == 0)
+          {
+            dataStartIndex = 0;
+          }
+          else
+          {
+            dataStartIndex = hdr->entry_point_offset[y - 1];
+          }
 
           int dataEnd;
-          if (y==nRows-1) dataEnd = reader.bytes_remaining;
-          else            dataEnd = hdr->entry_point_offset[y];
+          if (y == nRows - 1)
+            dataEnd = reader.bytes_remaining;
+          else
+            dataEnd = hdr->entry_point_offset[y];
 
           init_thread_context(&ctx->thread_context[y]);
 
           init_CABAC_decoder(&ctx->thread_context[y].cabac_decoder,
                              &reader.data[dataStartIndex],
-                             dataEnd-dataStartIndex);
+                             dataEnd - dataStartIndex);
         }
 
         // add tasks
 
-        for (int y=0;y<nRows;y++) {
-          add_task_decode_CTB_row(ctx, y, y==0);
+        for (int y = 0; y < nRows; y++)
+        {
+          add_task_decode_CTB_row(ctx, y, y == 0);
         }
 
         // TODO: hard-coded thread context
@@ -843,25 +926,36 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
 
         wait_for_completion(ctx->img);
       }
-      else {
-        if (nRows > MAX_THREAD_CONTEXTS) {
+      else
+      {
+        if (nRows > MAX_THREAD_CONTEXTS)
+        {
           return DE265_ERROR_MAX_THREAD_CONTEXTS_EXCEEDED;
         }
 
-        for (int i=0;i<nRows;i++) {
+        for (int i = 0; i < nRows; i++)
+        {
           int dataStartIndex;
-          if (i==0) { dataStartIndex=0; }
-          else      { dataStartIndex=hdr->entry_point_offset[i-1]; }
+          if (i == 0)
+          {
+            dataStartIndex = 0;
+          }
+          else
+          {
+            dataStartIndex = hdr->entry_point_offset[i - 1];
+          }
 
           int dataEnd;
-          if (i==nRows-1) dataEnd = reader.bytes_remaining;
-          else            dataEnd = hdr->entry_point_offset[i];
+          if (i == nRows - 1)
+            dataEnd = reader.bytes_remaining;
+          else
+            dataEnd = hdr->entry_point_offset[i];
 
           init_thread_context(&ctx->thread_context[i]);
 
           init_CABAC_decoder(&ctx->thread_context[i].cabac_decoder,
                              &reader.data[dataStartIndex],
-                             dataEnd-dataStartIndex);
+                             dataEnd - dataStartIndex);
 
           ctx->thread_context[i].shdr = hdr;
           ctx->thread_context[i].decctx = ctx;
@@ -873,77 +967,85 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
 
         //printf("-------- decode --------\n");
 
-        add_CTB_decode_task_syntax(&ctx->thread_context[0], 0,0  ,0,0, NULL);
+        add_CTB_decode_task_syntax(&ctx->thread_context[0], 0, 0, 0, 0, NULL);
 
         wait_for_completion(ctx->img);
       }
     }
   }
-  else switch (nal_hdr.nal_unit_type) {
+  else
+    switch (nal_hdr.nal_unit_type)
+    {
     case NAL_UNIT_VPS_NUT:
+    {
+      logdebug(LogHeaders, "---> read VPS\n");
+
+      video_parameter_set vps;
+      err = read_vps(ctx, &reader, &vps);
+      if (err != DE265_OK)
       {
-        logdebug(LogHeaders,"---> read VPS\n");
-
-        video_parameter_set vps;
-        err=read_vps(ctx,&reader,&vps);
-        if (err != DE265_OK) {
-          break;
-        }
-
-        if (ctx->param_vps_headers_fd>=0) {
-          dump_vps(&vps, ctx->param_vps_headers_fd);
-        }
-
-        process_vps(ctx, &vps);
+        break;
       }
-      break;
+
+      if (ctx->param_vps_headers_fd >= 0)
+      {
+        dump_vps(&vps, ctx->param_vps_headers_fd);
+      }
+
+      process_vps(ctx, &vps);
+    }
+    break;
 
     case NAL_UNIT_SPS_NUT:
+    {
+      logdebug(LogHeaders, "----> read SPS\n");
+
+      seq_parameter_set sps;
+
+      if ((err = read_sps(ctx, &reader, &sps, &ctx->ref_pic_sets)) != DE265_OK)
       {
-        logdebug(LogHeaders,"----> read SPS\n");
-
-        seq_parameter_set sps;
-
-        if ((err=read_sps(ctx, &reader,&sps, &ctx->ref_pic_sets)) != DE265_OK) {
-          break;
-        }
-
-        if (ctx->param_sps_headers_fd>=0) {
-          dump_sps(&sps, ctx->ref_pic_sets, ctx->param_sps_headers_fd);
-        }
-
-        process_sps(ctx, &sps);
+        break;
       }
-      break;
+
+      if (ctx->param_sps_headers_fd >= 0)
+      {
+        dump_sps(&sps, ctx->ref_pic_sets, ctx->param_sps_headers_fd);
+      }
+
+      process_sps(ctx, &sps);
+    }
+    break;
 
     case NAL_UNIT_PPS_NUT:
+    {
+      logdebug(LogHeaders, "----> read PPS\n");
+
+      pic_parameter_set pps;
+
+      init_pps(&pps);
+      bool success = read_pps(&reader, &pps, ctx);
+
+      if (ctx->param_pps_headers_fd >= 0)
       {
-        logdebug(LogHeaders,"----> read PPS\n");
-
-        pic_parameter_set pps;
-
-        init_pps(&pps);
-        bool success = read_pps(&reader,&pps,ctx);
-
-        if (ctx->param_pps_headers_fd>=0) {
-          dump_pps(&pps, ctx->param_pps_headers_fd);
-        }
-
-        if (success) {
-          process_pps(ctx,&pps);
-        }
+        dump_pps(&pps, ctx->param_pps_headers_fd);
       }
-      break;
+
+      if (success)
+      {
+        process_pps(ctx, &pps);
+      }
+    }
+    break;
 
     case NAL_UNIT_PREFIX_SEI_NUT:
     case NAL_UNIT_SUFFIX_SEI_NUT:
-      logdebug(LogHeaders,"----> read SEI\n");
+      logdebug(LogHeaders, "----> read SEI\n");
 
       sei_message sei;
 
       push_current_picture_to_output_queue(ctx);
 
-      read_sei(&reader,&sei, nal_hdr.nal_unit_type==NAL_UNIT_SUFFIX_SEI_NUT, ctx);
+      read_sei(&reader, &sei, nal_hdr.nal_unit_type == NAL_UNIT_SUFFIX_SEI_NUT, ctx);
       dump_sei(&sei, ctx);
 
       err = process_sei(&sei, ctx);
@@ -953,10 +1055,9 @@ de265_error de265_decode_NAL(de265_decoder_context* de265ctx, NAL_unit* nal)
   return err;
 }
 
-
-LIBDE265_API void de265_reset(de265_decoder_context* de265ctx)
+LIBDE265_API void de265_reset(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   // TODO: maybe we can do things better here
 
@@ -964,155 +1065,154 @@ LIBDE265_API void de265_reset(de265_decoder_context* de265ctx)
   init_decoder_context(ctx);
 }
 
-
-LIBDE265_API const struct de265_image* de265_get_next_picture(de265_decoder_context* de265ctx)
+LIBDE265_API const struct de265_image *de265_get_next_picture(de265_decoder_context *de265ctx)
 {
-  const struct de265_image* img = de265_peek_next_picture(de265ctx);
-  if (img) {
+  const struct de265_image *img = de265_peek_next_picture(de265ctx);
+  if (img)
+  {
     de265_release_next_picture(de265ctx);
   }
 
   return img;
 }
 
-
-LIBDE265_API const struct de265_image* de265_peek_next_picture(de265_decoder_context* de265ctx)
+LIBDE265_API const struct de265_image *de265_peek_next_picture(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   return ctx->image_output_queue[0];
 }
 
-
-LIBDE265_API void de265_release_next_picture(de265_decoder_context* de265ctx)
+LIBDE265_API void de265_release_next_picture(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   // no active output picture -> ignore release request
 
-  if (ctx->image_output_queue_length==0) { return; }
+  if (ctx->image_output_queue_length == 0)
+  {
+    return;
+  }
 
-
-  loginfo(LogDPB, "release DPB with POC=%d\n",ctx->image_output_queue[0]->PicOrderCntVal);
+  loginfo(LogDPB, "release DPB with POC=%d\n", ctx->image_output_queue[0]->PicOrderCntVal);
 
   ctx->image_output_queue[0]->PicOutputFlag = false;
 
   // pop output queue
 
-  for (int i=1;i<ctx->image_output_queue_length;i++)
-    {
-      ctx->image_output_queue[i-1] = ctx->image_output_queue[i];
-    }
+  for (int i = 1; i < ctx->image_output_queue_length; i++)
+  {
+    ctx->image_output_queue[i - 1] = ctx->image_output_queue[i];
+  }
 
   ctx->image_output_queue_length--;
 
-  ctx->image_output_queue[ ctx->image_output_queue_length ] = NULL;
-
+  ctx->image_output_queue[ctx->image_output_queue_length] = NULL;
 
   loginfo(LogDPB, "DPB output queue: ");
-  for (int i=0;i<ctx->image_output_queue_length;i++) {
+  for (int i = 0; i < ctx->image_output_queue_length; i++)
+  {
     loginfo(LogDPB, "*%d ", ctx->image_output_queue[i]->PicOrderCntVal);
   }
-  loginfo(LogDPB,"*\n");
+  loginfo(LogDPB, "*\n");
 }
 
-
-LIBDE265_API de265_error de265_get_warning(de265_decoder_context* de265ctx)
+LIBDE265_API de265_error de265_get_warning(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   return get_warning(ctx);
 }
 
-LIBDE265_API void de265_set_parameter_bool(de265_decoder_context* de265ctx, enum de265_param param, int value)
+LIBDE265_API void de265_set_parameter_bool(de265_decoder_context *de265ctx, enum de265_param param, int value)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   switch (param)
-    {
-    case DE265_DECODER_PARAM_BOOL_SEI_CHECK_HASH:
-      ctx->param_sei_check_hash = !!value;
-      break;
+  {
+  case DE265_DECODER_PARAM_BOOL_SEI_CHECK_HASH:
+    ctx->param_sei_check_hash = !!value;
+    break;
 
-    default:
-      assert(false);
-      break;
-    }
+  default:
+    assert(false);
+    break;
+  }
 }
 
-
-LIBDE265_API void de265_set_parameter_int(de265_decoder_context* de265ctx, enum de265_param param, int value)
+LIBDE265_API void de265_set_parameter_int(de265_decoder_context *de265ctx, enum de265_param param, int value)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   switch (param)
-    {
-    case DE265_DECODER_PARAM_DUMP_SPS_HEADERS:
-      ctx->param_sps_headers_fd = value;
-      break;
+  {
+  case DE265_DECODER_PARAM_DUMP_SPS_HEADERS:
+    ctx->param_sps_headers_fd = value;
+    break;
 
-    case DE265_DECODER_PARAM_DUMP_VPS_HEADERS:
-      ctx->param_vps_headers_fd = value;
-      break;
+  case DE265_DECODER_PARAM_DUMP_VPS_HEADERS:
+    ctx->param_vps_headers_fd = value;
+    break;
 
-    case DE265_DECODER_PARAM_DUMP_PPS_HEADERS:
-      ctx->param_pps_headers_fd = value;
-      break;
+  case DE265_DECODER_PARAM_DUMP_PPS_HEADERS:
+    ctx->param_pps_headers_fd = value;
+    break;
 
-    case DE265_DECODER_PARAM_DUMP_SLICE_HEADERS:
-      ctx->param_slice_headers_fd = value;
-      break;
+  case DE265_DECODER_PARAM_DUMP_SLICE_HEADERS:
+    ctx->param_slice_headers_fd = value;
+    break;
 
-    default:
-      assert(false);
-      break;
-    }
+  default:
+    assert(false);
+    break;
+  }
 }
 
-
-
-
-LIBDE265_API int de265_get_parameter_bool(de265_decoder_context* de265ctx, enum de265_param param)
+LIBDE265_API int de265_get_parameter_bool(de265_decoder_context *de265ctx, enum de265_param param)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   switch (param)
-    {
-    case DE265_DECODER_PARAM_BOOL_SEI_CHECK_HASH:
-      return ctx->param_sei_check_hash;
-      break;
+  {
+  case DE265_DECODER_PARAM_BOOL_SEI_CHECK_HASH:
+    return ctx->param_sei_check_hash;
+    break;
 
-    default:
-      assert(false);
-      return false;
-    }
+  default:
+    assert(false);
+    return false;
+  }
 }
 
-
-LIBDE265_API int de265_get_number_of_input_bytes_pending(de265_decoder_context* de265ctx)
+LIBDE265_API int de265_get_number_of_input_bytes_pending(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   int size = ctx->nBytes_in_NAL_queue;
-  if (ctx->pending_input_NAL) { size += ctx->pending_input_NAL->nal_data.size; }
+  if (ctx->pending_input_NAL)
+  {
+    size += ctx->pending_input_NAL->nal_data.size;
+  }
   return size;
 }
 
-
-LIBDE265_API int de265_get_number_of_NAL_units_pending(de265_decoder_context* de265ctx)
+LIBDE265_API int de265_get_number_of_NAL_units_pending(de265_decoder_context *de265ctx)
 {
-  decoder_context* ctx = (decoder_context*)de265ctx;
+  decoder_context *ctx = (decoder_context *)de265ctx;
 
   int size = ctx->NAL_queue_len;
-  if (ctx->pending_input_NAL) { size++; }
+  if (ctx->pending_input_NAL)
+  {
+    size++;
+  }
 
   return size;
 }
 
-
-LIBDE265_API int de265_get_image_width(const struct de265_image* img,int channel)
+LIBDE265_API int de265_get_image_width(const struct de265_image *img, int channel)
 {
-  switch (channel) {
+  switch (channel)
+  {
   case 0:
     return img->width_confwin;
   case 1:
@@ -1123,9 +1223,10 @@ LIBDE265_API int de265_get_image_width(const struct de265_image* img,int channel
   }
 }
 
-LIBDE265_API int de265_get_image_height(const struct de265_image* img,int channel)
+LIBDE265_API int de265_get_image_height(const struct de265_image *img, int channel)
 {
-  switch (channel) {
+  switch (channel)
+  {
   case 0:
     return img->height_confwin;
   case 1:
@@ -1136,32 +1237,48 @@ LIBDE265_API int de265_get_image_height(const struct de265_image* img,int channe
   }
 }
 
-LIBDE265_API enum de265_chroma de265_get_chroma_format(const struct de265_image* img)
+LIBDE265_API enum de265_chroma de265_get_chroma_format(const struct de265_image *img)
 {
   return img->chroma_format;
 }
 
-LIBDE265_API const uint8_t* de265_get_image_plane(const de265_image* img, int channel, int* stride)
+LIBDE265_API const uint8_t *de265_get_image_plane(const de265_image *img, int channel, int *stride)
 {
-  uint8_t* data;
+  uint8_t *data;
 
-  switch (channel) {
-  case 0: data = img->y_confwin;  if (stride) *stride = img->stride; break;
-  case 1: data = img->cb_confwin; if (stride) *stride = img->chroma_stride; break;
-  case 2: data = img->cr_confwin; if (stride) *stride = img->chroma_stride; break;
-  default: data = NULL; if (stride) *stride = 0; break;
+  switch (channel)
+  {
+  case 0:
+    data = img->y_confwin;
+    if (stride)
+      *stride = img->stride;
+    break;
+  case 1:
+    data = img->cb_confwin;
+    if (stride)
+      *stride = img->chroma_stride;
+    break;
+  case 2:
+    data = img->cr_confwin;
+    if (stride)
+      *stride = img->chroma_stride;
+    break;
+  default:
+    data = NULL;
+    if (stride)
+      *stride = 0;
+    break;
   }
 
   return data;
 }
 
-LIBDE265_API de265_PTS de265_get_image_PTS(const struct de265_image* img)
+LIBDE265_API de265_PTS de265_get_image_PTS(const struct de265_image *img)
 {
   return img->pts;
 }
 
-LIBDE265_API void* de265_get_image_user_data(const struct de265_image* img)
+LIBDE265_API void *de265_get_image_user_data(const struct de265_image *img)
 {
   return img->user_data;
 }
-
